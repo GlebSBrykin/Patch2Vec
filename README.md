@@ -1,4 +1,4 @@
-# Patch2Vec
+# Patch2Vec [[WNNA-2022 site]](http://rnns.net/wnna-2022/) [[Poster]](https://disk.yandex.ru/i/OK_mVsaQP_RemQ)
 This is an official repository for "Patch2Vec: a simple and efficient convolution algorithm for mobile neural networks" WNNA-2022 poster.
 
 # Description
