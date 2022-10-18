@@ -20,7 +20,7 @@ Let's look at this process deeper.
 
 When performing memory operations, the processor loads a certain amount of data behind the requested address into the cache. Read-ahead allows the processor to perform operations on data and load/unload them from/to RAM in parallel, instead of making a request to RAM at each iteration. Note that the processor cache is faster memory than RAM, so you should distribute memory access in such a way as to minimize RAM accesses by maximizing cache accesses. The illustration of the naive convolution above shows memory accesses and cache misses that occur due to a request for memory addresses, data from which has not been loaded into the cache. On modern computing devices, the performance of the naive algorithm in cases when number of kernels is larger than 1 is primarily limited by the bandwidth of RAM, which is relatively small even for the most modern types.
 
-The source code of naive conv2d used in experiments is shown below:
+The C# source code of naive conv2d used in experiments is shown below:
 
 ```C#
 /// <summary>
@@ -186,7 +186,7 @@ Im2Col is conventional practical-usable algorithm for all cases of convolution.
 
 The idea of im2col is to group the values of the input image required to perform the convolution operation, which allows you to perform a non-optimal operation of loading an image patch once, and not D times (where D is the number of convolution cores). The convolution operation is reduced to matrix multiplication, which can be easily optimized using the processor cache and many other approaches, such as SIMD.
 
-The source code of im2col conv2d used in experiments is shown below:
+The C# source code of im2col conv2d used in experiments is shown below:
 
 ```C#
 /// <summary>
@@ -378,7 +378,7 @@ Patch2Vec is a modified im2col algorithm. The main difference between patch2vec 
 
 ![Patch2Vec](https://github.com/GlebSBrykin/Patch2Vec/raw/main/Illustrations/patch2vec.jpg)
 
-The source code of patch2vec conv2d used in experiments is shown below:
+The C# source code of patch2vec conv2d used in experiments is shown below:
 
 ```C#
 /// <summary>
@@ -493,6 +493,17 @@ public static void Patch2VecConv2d(float* src,
     }
 }
 ```
+
+## Results
+
+|Conditions              |Naive     |im2col          |patch2vec        |
+|:----------------------:|:--------:|:--------------:|:---------------:|
+|f64k3s1 1b64c256h256w   |100% / 0 b|__29%__ / 144 Mb|36% __~2 Kb__    |
+|f64k5s1 1b64c256h256w   |100% / 0 b|__37%__ / 394 Mb|42% __~6 Kb__    |
+|f64k7s1 1b64c256h256w   |100% / 0 b|__40%__ / 760 Mb|45% __~12 Kb__   |
+|f64k9s1 1b64c256h256w   |100% / 0 b|__39%__ / 1.2 Gb|49% __~20 Kb__   |
+|f128k3s1 1b64c1024h1024w|100% / 0 b|32% / 2.25 Gb   |__27%__ __~2 Kb__|
+|f128k5s1 1b64c1024h1024w|100% / 0 b|-   / >4 Gb, OoM|__41%__ __~6 Kb__|
 
 ## Sources
 * Conv2d animation: https://ai-news.ru/2018/07/kak_rabotaet_svertochnaya_nejronnaya_set_arhitektura_primery_osobennosti.html
