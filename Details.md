@@ -1,4 +1,5 @@
 # Patch2Vec algorithm details
+
 **Here we suppose that all convolutions are two-dimensional.**
 
 ## Naive algorithm
@@ -188,6 +189,24 @@ The idea of im2col is to group the values of the input image required to perform
 The source code of im2col conv2d used in experiments is shown below:
 
 ```C#
+/// <summary>
+/// Image to column conversion.
+/// </summary>
+/// <param name="src">Source data.</param>
+/// <param name="srcC">Input channels.</param>
+/// <param name="srcH">Input height.</param>
+/// <param name="srcW">Input width.</param>
+/// <param name="kernelY">Kernel height.</param>
+/// <param name="kernelX">Kernel width.</param>
+/// <param name="dilationY">Dilation of the kernel by height.</param>
+/// <param name="dilationX">Dilation of the kernel by width.</param>
+/// <param name="strideY">Stride of the convolution by height.</param>
+/// <param name="strideX">Stride of the convolution by width.</param>
+/// <param name="padY">Zero padding by left side.</param>
+/// <param name="padX">Zero padding by top side.</param>
+/// <param name="padH">Zero padding by right side.</param>
+/// <param name="padW">Zero padding by bottom side.</param>
+/// <param name="buf">Buffer.</param>
 public static void im2col(float* src,
                           int srcC,
                           int srcH,
@@ -245,6 +264,15 @@ public static void im2col(float* src,
     }
 }
 
+/// <summary>
+/// Matrix multiplication.
+/// </summary>
+/// <param name="M">A rows.</param>
+/// <param name="N">A columns.</param>
+/// <param name="K">B columns.</param>
+/// <param name="A">Left matrix.</param>
+/// <param name="B">Right matrix.</param>
+/// <param name="C">Result matrix.</param>
 public static void mm(int M,
                       int N,
                       int K,
@@ -272,6 +300,29 @@ public static void mm(int M,
     });
 }
 
+/// <summary>
+/// Im2Col-based implementation of two-dimensional convolution.
+/// </summary>
+/// <param name="src">Source data.</param>
+/// <param name="batch">Batch size.</param>
+/// <param name="srcC">Input channels.</param>
+/// <param name="srcH">Input height.</param>
+/// <param name="srcW">Input width.</param>
+/// <param name="kernelY">Kernel height.</param>
+/// <param name="kernelX">Kernel width.</param>
+/// <param name="dilationY">Dilation of the kernel by height.</param>
+/// <param name="dilationX">Dilation of the kernel by width.</param>
+/// <param name="strideY">Stride of the convolution by height.</param>
+/// <param name="strideX">Stride of the convolution by width.</param>
+/// <param name="padY">Zero padding by left side.</param>
+/// <param name="padX">Zero padding by top side.</param>
+/// <param name="padH">Zero padding by right side.</param>
+/// <param name="padW">Zero padding by bottom side.</param>
+/// <param name="group">Convolution groups. If group=srcC=dstC, convolution is depthwise separable.</param>
+/// <param name="weight">Weights (kernels).</param>
+/// <param name="bias">Bias.</param>
+/// <param name="dst">Destination memory.</param>
+/// <param name="dstC">Output channels.</param>
 public static void Im2ColConv2d(float* src,
                                 int batch,
                                 int srcC,
