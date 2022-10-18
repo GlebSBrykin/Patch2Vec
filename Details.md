@@ -496,14 +496,16 @@ public static void Patch2VecConv2d(float* src,
 
 ## Results
 
-|Conditions              |Naive     |im2col          |patch2vec        |
-|:----------------------:|:--------:|:--------------:|:---------------:|
-|f64k3s1 1b64c256h256w   |100% / 0 b|__29%__ / 144 Mb|36% __~2 Kb__    |
-|f64k5s1 1b64c256h256w   |100% / 0 b|__37%__ / 394 Mb|42% __~6 Kb__    |
-|f64k7s1 1b64c256h256w   |100% / 0 b|__40%__ / 760 Mb|45% __~12 Kb__   |
-|f64k9s1 1b64c256h256w   |100% / 0 b|__39%__ / 1.2 Gb|49% __~20 Kb__   |
-|f128k3s1 1b64c1024h1024w|100% / 0 b|32% / 2.25 Gb   |__27%__ __~2 Kb__|
-|f128k5s1 1b64c1024h1024w|100% / 0 b|-   / >4 Gb, OoM|__41%__ __~6 Kb__|
+Some results of experiments are presented in table below:
+
+|Conditions                |Naive     |im2col          |patch2vec          |
+|:------------------------:|:--------:|:--------------:|:-----------------:|
+|f64k3s1 / 1b64c256h256w   |100% / 0 b|__29%__ / 144 Mb|36% / __~2 Kb__    |
+|f64k5s1 / 1b64c256h256w   |100% / 0 b|__37%__ / 394 Mb|42% / __~6 Kb__    |
+|f64k7s1 / 1b64c256h256w   |100% / 0 b|__40%__ / 760 Mb|45% / __~12 Kb__   |
+|f64k9s1 / 1b64c256h256w   |100% / 0 b|__39%__ / 1.2 Gb|49% / __~20 Kb__   |
+|f128k3s1 / 1b64c1024h1024w|100% / 0 b|32% / 2.25 Gb   |__27%__ / __~2 Kb__|
+|f128k5s1 / 1b64c1024h1024w|100% / 0 b|-   / >4 Gb, OoM|__41%__ / __~6 Kb__|
 
 ## Sources
 * Conv2d animation: https://ai-news.ru/2018/07/kak_rabotaet_svertochnaya_nejronnaya_set_arhitektura_primery_osobennosti.html
