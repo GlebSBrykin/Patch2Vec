@@ -245,12 +245,12 @@ public static void im2col(float* src,
     }
 }
 
-public static void gemm_nn(int M,
-                           int N,
-                           int K,
-                           float* A,
-                           float* B,
-                           float* C)
+public static void mm(int M,
+                      int N,
+                      int K,
+                      float* A,
+                      float* B,
+                      float* C)
 {
     Parallel.For(0, M, (int i) =>
     {
@@ -304,7 +304,7 @@ public static void Im2ColConv2d(float* src,
         im2col(src, srcC, srcH, srcW, kernelY, kernelX, dilationY, dilationX, strideY, strideX, padY, padX, padH, padW, buf);
         for(int g = 0; g < group; ++g)
         {
-            gemm_nn(M, N, K, weight + M * K * g, buf + N * K * g, dst + M * N * g);
+            mm(M, N, K, weight + M * K * g, buf + N * K * g, dst + M * N * g);
         }
         for(int i = 0; i < dstC; ++i)
         {
@@ -326,3 +326,123 @@ public static void Im2ColConv2d(float* src,
 Patch2Vec is a modified im2col algorithm. The main difference between patch2vec and im2col is that patch2vec does not store all image patches in memory, instead, all convolution kernels are applied to each patch extracted into a continuous vector, after which the obtained values are written to the corresponding position of the output image. Patch2vec allows to perform a non-optimal operation of extracting the values of the image area only once, after which all convolution kernels are applied to the vector stored in memory sequentially, using the processor cache as much as possible. The performance of patch2vec is comparable to that of im2col, however, patch2vec requires `srcC * kernelY * kernelX * sizeof(dtype)` bytes of memory for the buffer per thread, and im2col requires `dstH * dstW * srcC * kernelY * kernelX * sizeof(dtype)` bytes.
 
 ![Patch2Vec](https://github.com/GlebSBrykin/Patch2Vec/raw/main/Illustrations/patch2vec.jpg)
+
+The source code of patch2vec conv2d used in experiments is shown below:
+
+```C#
+/// <summary>
+/// Patch2Vec-based implementation of two-dimensional convolution.
+/// </summary>
+/// <param name="src">Source data.</param>
+/// <param name="batch">Batch size.</param>
+/// <param name="srcC">Input channels.</param>
+/// <param name="srcH">Input height.</param>
+/// <param name="srcW">Input width.</param>
+/// <param name="kernelY">Kernel height.</param>
+/// <param name="kernelX">Kernel width.</param>
+/// <param name="dilationY">Dilation of the kernel by height.</param>
+/// <param name="dilationX">Dilation of the kernel by width.</param>
+/// <param name="strideY">Stride of the convolution by height.</param>
+/// <param name="strideX">Stride of the convolution by width.</param>
+/// <param name="padY">Zero padding by left side.</param>
+/// <param name="padX">Zero padding by top side.</param>
+/// <param name="padH">Zero padding by right side.</param>
+/// <param name="padW">Zero padding by bottom side.</param>
+/// <param name="group">Convolution groups. If group=srcC=dstC, convolution is depthwise separable.</param>
+/// <param name="weight">Weights (kernels).</param>
+/// <param name="bias">Bias.</param>
+/// <param name="dst">Destination memory.</param>
+/// <param name="dstC">Output channels.</param>
+public static void Patch2VecConv2d(float* src,
+                                   int batch,
+                                   int srcC,
+                                   int srcH,
+                                   int srcW,
+                                   int kernelY,
+                                   int kernelX,
+                                   int dilationY,
+                                   int dilationX,
+                                   int strideY,
+                                   int strideX,
+                                   int padY,
+                                   int padX,
+                                   int padH,
+                                   int padW,
+                                   int group,
+                                   float* weight,
+                                   float* bias,
+                                   float* dst,
+                                   int dstC)
+{
+    int dstH = (srcH + padY + padH - (dilationY * (kernelY - 1) + 1)) / strideY + 1;
+    int dstW = (srcW + padX + padW - (dilationX * (kernelX - 1) + 1)) / strideX + 1;
+    dstC = dstC / group;
+    srcC = srcC / group;
+    var srcCkernelYkernelX = srcC * kernelY * kernelX;
+    for(int b = 0; b < batch; ++b)
+    {
+        var src1 = src + b * group * srcC * srcH * srcW;
+        var dst1 = dst + b * group * dstC * dstH * dstW;
+        for(int g = 0; g < group; ++g)
+        {
+            var src2 = src1 + g * srcC * srcH * srcW;
+            var dst2 = dst1 + g * dstC * dstH * dstW;
+            Parallel.For(0, dstH, (int dy) =>
+            {
+                var dst3 = dst2 + dy * dstW;
+                int sy_ = dy * strideY - padY;
+                var buffer = stackalloc float[srcCkernelYkernelX];
+                for(int dx = 0; dx < dstW; ++dx)
+                {
+                    var dst4 = dst3 + dx;
+                    int sx_ = dx * strideX - padX;
+                    for(int sc = 0; sc < srcC; ++sc)
+                    {
+                        var src3 = src2 + sc * srcH * srcW;
+                        for(int ky = 0; ky < kernelY; ++ky)
+                        {
+                            int sy = sy_ + ky * dilationY;
+                            if((sy < 0) || (sy >= srcH))
+                            {
+                                for(int kx = 0; kx < kernelX; ++kx)
+                                {
+                                    *buffer++ = 0;
+                                }
+                                continue;
+                            }
+                            var src4 = src3 + sy * srcW;
+                            for(int kx = 0; kx < kernelX; ++kx)
+                            {
+                                int sx = sx_ + kx * dilationX;
+                                if((sx >= 0) && (sx < srcW))
+                                {
+                                    *buffer++ = src4[sx];
+                                }
+                                else
+                                {
+                                    *buffer++ = 0;
+                                }
+                            }
+                        }
+                    }
+                    buffer -= srcCkernelYkernelX;
+                    for(int dc = 0; dc < dstC; ++dc)
+                    {
+                        float sum = 0;
+                        var pweight = weight + (g * dstC + dc) * srcCkernelYkernelX;
+                        for(int i = 0; i < srcCkernelYkernelX; ++i)
+                        {
+                            sum += buffer[i] * pweight[i];
+                        }
+                        dst4[dc * dstH * dstW] = sum + bias[g * dstC + dc];
+                    }
+                }
+            });
+        }
+    }
+}
+```
+
+## Sources
+* Conv2d animation: https://ai-news.ru/2018/07/kak_rabotaet_svertochnaya_nejronnaya_set_arhitektura_primery_osobennosti.html
+* Im2Col illustration: https://zybuluo.com/Team/note/1175439
